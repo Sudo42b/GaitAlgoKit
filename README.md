@@ -35,20 +35,33 @@ GaitAlgoKit is a Python-based framework designed for developing and testing gait
 
 ### Setup
 1. Clone the repository
-   ```bash
-   git clone https://github.com/YourUsername/GaitAlgoKit.git
-   cd GaitAlgoKit
-   ```
+```bash
+git clone https://github.com/YourUsername/GaitAlgoKit.git
+cd GaitAlgoKit
+```
 
 2. Install dependencies
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+conda create -n gaitalgokit python=3.8
+conda activate gaitalgokit
+conda env update --file environment.yml
+pip install -e .
+```
 
 3. Run the main application
-   ```bash
-   python src/main.py
-   ```
+```bash
+python src/main.py
+```
+
+4. export your environments.yaml
+```bash
+# Windows
+conda env export --from-history | findstr -v "prefix" | findstr -v "name"  > environment.yml
+
+# Linux or MacOS
+conda env export --no-builds | grep -v "prefix" | grep -v "name" > environment.yml
+
+```
 
 ## Project Structure
 ```
@@ -82,30 +95,9 @@ Complete documentation is available in the `docs/` directory:
   - Status: Complete
   - Related Issue: #issue_number
 
-## Dependencies
-- numpy: Numerical operations and matrix processing
-- pandas: Data manipulation and analysis
-- scipy: Scientific computing and signal processing
-- matplotlib: Data visualization
-- scikit-learn: Machine learning algorithms
-- pytorch: Deep learning model implementation
-
-## Contributing
-We welcome contributions! Please feel free to submit a Pull Request.
-
-### Development Guidelines
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contact
-- Your Name - [Your Email]
-- Project Link: [https://github.com/YourUsername/GaitAlgoKit](https://github.com/YourUsername/GaitAlgoKit)
 
 ## TODO
 - [ ] GUI Implementation
@@ -133,6 +125,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   - [ ] Hardware interface setup
 
 ## Acknowledgments
-- This project is developed as part of research and development at [dareetech](https://www.dareetech.com)
+- This project is developed as part of research and development at [DareeTech](https://www.dareetech.com)
 - Research papers that provided the theoretical foundation
 - Supporting institutions and laboratories that contributed to the project's success

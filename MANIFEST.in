@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+recursive-include docs *
+recursive-include examples *
+recursive-include notebooks *
+recursive-include tests *
+recursive-include src/gaitalgokit/data *
+recursive-include src/gaitalgokit/configs *
