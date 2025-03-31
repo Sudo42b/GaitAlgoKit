@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # GaitAlgoKit
 
 A comprehensive toolkit for gait analysis algorithms and real-time control of lower-limb exoskeleton devices. This repository provides implementations of cutting-edge research papers, real-time data processing, and visualization tools.
@@ -28,7 +27,7 @@ GaitAlgoKit is a Python-based framework designed for developing and testing gait
 ## Installation
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.11+
 - Required packages:
   ```bash
   pip install numpy pandas scipy matplotlib scikit-learn torch
@@ -43,7 +42,7 @@ cd GaitAlgoKit
 
 2. Install dependencies
 ```bash
-conda create -n gaitalgokit python=3.8
+conda create -n gaitalgokit python=3.11
 conda activate gaitalgokit
 conda env update --file environment.yml
 pip install -e .
@@ -129,6 +128,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - This project is developed as part of research and development at [DareeTech](https://www.dareetech.com)
 - Research papers that provided the theoretical foundation
 - Supporting institutions and laboratories that contributed to the project's success
-=======
-# conda activate actnew로 하셈
->>>>>>> fbfa09cf3cbebc885a0c0564d3422b85222b9a98
