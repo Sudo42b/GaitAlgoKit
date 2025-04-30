@@ -4,7 +4,7 @@ import argparse
 import math
 import time
 
-from bindings import RobstrideMotorsSupervisor
+from motors.robstride.bindings import RobstrideMotorsSupervisor
 # from actuator import RobstrideMotorsSupervisor
 
 
@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument("--motor-type", type=str, default="01")
     parser.add_argument("--sleep", type=float, default=0.00)
     parser.add_argument("--period", type=float, default=2.5)
-    parser.add_argument("--amplitude", type=float, default=1.0)
+    parser.add_argument("--amplitude", type=float, default=0.65)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -32,8 +32,11 @@ def main() -> None:
     try:
         while True:
             elapsed_time = time.time() - start_time
-            target_position = amplitude * math.sin(elapsed_time * 2 * math.pi / period)
-            target_velocity = amplitude * 2 * math.pi / period * math.cos(elapsed_time * 2 * math.pi / period)
+            target_position = amplitude * math.sin(2 * math.pi / period * elapsed_time)
+            # 라디안을 각도로
+            angle = target_position * 180 / math.pi
+            print(f"target_position: {target_position:.2f}, angle: {angle:.2f}")
+            target_velocity = amplitude * 2 * math.pi / period * math.cos(2 * math.pi / period)
             supervisor.set_position(args.motor_id, target_position)
             supervisor.set_velocity(args.motor_id, target_velocity)
             time.sleep(args.sleep)

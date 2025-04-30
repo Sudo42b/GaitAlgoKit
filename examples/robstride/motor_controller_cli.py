@@ -11,9 +11,9 @@ import sys
 import logging
 from typing import Dict, List, Optional
 import threading
-from can_communication import MotorType
+from motors.robstride.can_communication import MotorType
 # Import the Python bindings for the motor controller
-from bindings import (
+from motors.robstride.bindings import (
     RobstrideMotorsSupervisor,
     RobstrideMotorControlParams,
     RobstrideMotorFeedback

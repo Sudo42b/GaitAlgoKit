@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  ros_gui:
+    image: arm64v8/ros:humble
+    container_name: ros_gui
+    environment:
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - XAUTHORITY=$XAUTHORITY
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - $XAUTHORITY:$XAUTHORITY
+      - ./ros_ws:/ros_ws
+    # 다음 라인은 ROS2 환경을 자동으로 설정합니다
+    command: bash -c "source /opt/ros/humble/setup.bash && bash"
+    # GPU/DRI 장치 접근을 위한 설정
+    devices:
+      - /dev/dri:/dev/dri
+    # 항상 재시작
+    restart: unless-stopped
+    # 호스트 네트워크 사용 (ROS 통신에 편리함)
+    network_mode: host
+    # 대화형 터미널 설정
+    stdin_open: true
+    tty: true
