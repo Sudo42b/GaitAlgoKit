@@ -90,7 +90,12 @@ def transition_positions(superior: RobstrideMotorsSupervisor,
         left_angle = left_pos * 180 / math.pi
         
         print(f"전환 중: right_pos: {right_pos:.2f}({right_angle:.2f}°), left_pos: {left_pos:.2f}({left_angle:.2f}°)")
-        time.sleep(0.01)  # 서보 업데이트 시간 확보
+        print(f"경과시간: {elapsed:.2f}초, t: {t:.2f}, smooth_t: {smooth_t:.2f}")
+        # time.sleep(0.01)  # 서보 업데이트 시간 확보
+        if right_pos <= 0.1 and left_pos <= 0.1:
+            break
+        
+        
     
     # 최종 위치 설정 확인
     superior.set_position(1, end_right_pos)
@@ -134,7 +139,7 @@ def fast_walk(superior: RobstrideMotorsSupervisor, period: float = 1.0, amplitud
             last_right_pos = right_pos
             last_left_pos = left_pos
             
-            time.sleep(0.01)  # CPU 부하 방지
+            # time.sleep(0.01)  # CPU 부하 방지
             
     except Exception as e:
         print(f"빠른 걷기 오류: {e}")
@@ -191,7 +196,7 @@ def slow_walk(superior: RobstrideMotorsSupervisor, period: float = 2.0, amplitud
             last_right_pos = right_pos
             last_left_pos = left_pos
             
-            time.sleep(0.01)  # CPU 부하 방지
+            # time.sleep(0.01)  # CPU 부하 방지
             
     except Exception as e:
         print(f"느린 걷기 오류: {e}")
@@ -253,7 +258,7 @@ def right_leg_injury(superior: RobstrideMotorsSupervisor, period: float = 2.0, a
             last_right_pos = right_pos
             last_left_pos = left_pos
             
-            time.sleep(0.01)  # CPU 부하 방지
+            # time.sleep(0.01)  # CPU 부하 방지
             
     except Exception as e:
         print(f"오른쪽 다리 부상 오류: {e}")
@@ -315,7 +320,7 @@ def left_leg_injury(superior: RobstrideMotorsSupervisor, period: float = 2.0, am
             last_right_pos = right_pos
             last_left_pos = left_pos
             
-            time.sleep(0.01)  # CPU 부하 방지
+            # time.sleep(0.01)  # CPU 부하 방지
             
     except Exception as e:
         print(f"왼쪽 다리 부상 오류: {e}")
@@ -419,6 +424,13 @@ def main() -> None:
         superior.add_motor_to_zero(args.motor_id)
         superior.add_motor_to_zero(args.second_motor_id)
         raise
+    finally:
+        # 모든 모터를 원점으로 복귀
+        superior.add_motor_to_zero(args.motor_id)
+        superior.add_motor_to_zero(args.second_motor_id)
+        print("모터 원점 복귀 완료")
+        superior.stop()
+        print("모터 정지 완료")
 
 if __name__ == "__main__":
     main()
