@@ -355,7 +355,7 @@ def main() -> None:
     parser.add_argument("--motor-type", type=str, default="01", help="모터 타입 (기본값: 01)")
     parser.add_argument("--second-motor-id", type=int, default=2, help="모터 ID (기본값: 2)")
     parser.add_argument("--second-motor-type", type=str, default="01", help="모터 타입 (기본값: 01)")
-    parser.add_argument("--duration", type=float, default=3.0, help="각 모드의 실행 시간 (초)")
+    parser.add_argument("--duration", type=float, default=6.0, help="각 모드의 실행 시간 (초)")
     parser.add_argument("--cycles", type=int, default=1, help="전체 사이클 반복 횟수")
     
     args = parser.parse_args()
@@ -386,19 +386,19 @@ def main() -> None:
             print(f"\n===== 사이클 {cycle+1}/{args.cycles} 시작 =====\n")
             
             # 빠른 걷기 시작 (처음 시작이므로 시작 위치 지정 없음)
-            right_pos, left_pos = fast_walk(superior, period=args.period/2, amplitude=args.amplitude, duration=args.duration)
+            right_pos, left_pos = fast_walk(superior, period=args.period*2, amplitude=args.amplitude, duration=args.duration)
             
             # 느린 걷기로 전환 (이전 마지막 위치에서 시작)
-            right_pos, left_pos = slow_walk(superior, period=args.period, amplitude=args.amplitude, 
-                                           duration=args.duration, start_right=right_pos, start_left=left_pos)
+            # right_pos, left_pos = slow_walk(superior, period=args.period, amplitude=args.amplitude, 
+            #                                duration=args.duration, start_right=right_pos, start_left=left_pos)
             
             # 오른쪽 다리 부상으로 전환
-            right_pos, left_pos = right_leg_injury(superior, period=args.period, amplitude=args.amplitude, 
-                                                 duration=args.duration, start_right=right_pos, start_left=left_pos)
+            # right_pos, left_pos = right_leg_injury(superior, period=args.period, amplitude=args.amplitude, 
+            #                                      duration=args.duration, start_right=right_pos, start_left=left_pos)
             
             # 왼쪽 다리 부상으로 전환
-            right_pos, left_pos = left_leg_injury(superior, period=args.period, amplitude=args.amplitude, 
-                                                duration=args.duration, start_right=right_pos, start_left=left_pos)
+            # right_pos, left_pos = left_leg_injury(superior, period=args.period, amplitude=args.amplitude, 
+            #                                     duration=args.duration, start_right=right_pos, start_left=left_pos)
             
             print(f"\n===== 사이클 {cycle+1}/{args.cycles} 완료 =====\n")
         

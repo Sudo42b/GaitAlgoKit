@@ -112,9 +112,9 @@ def walk(superior: RobstrideMotorsSupervisor,
     Returns:
         마지막 오른쪽/왼쪽 다리 위치
     """
-    msg = "빠른 걷기 시작" + f"주기: right: {right_mc.period}초, left: {left_mc.period}초" +\
-    f"진폭: right: {right_mc.amplitude}, left: {left_mc.amplitude}" + \
-    f"오프셋: right: {right_mc.rad_offset*180/math.pi:.1f}°, left: {left_mc.rad_offset*180/math.pi:.1f}°" + \
+    msg = "빠른 걷기 시작" + f"주기: right: {right_mc.period}초, left: {left_mc.period}초\n" +\
+    f"진폭: right: {right_mc.amplitude*180/math.pi}°, left: {left_mc.amplitude*180/math.pi}°\n"+ \
+    f"오프셋: right: {right_mc.rad_offset*180/math.pi:.1f}°, left: {left_mc.rad_offset*180/math.pi:.1f}°\v" + \
     f"지속시간: {duration}초"
     print(msg)
     # print(f"각도 제한 - 오른쪽: [{right_mc.rad_min_angle and right_mc.rad_min_angle*180/math.pi:.1f}°, {right_mc.rad_max_angle and right_mc.rad_max_angle*180/math.pi:.1f}°], " +
@@ -138,12 +138,20 @@ def walk(superior: RobstrideMotorsSupervisor,
             superior.set_position(2, left_mc.position)
             superior.set_velocity(2, left_mc.velocity)
             
+            # m1_t = superior.get_torque(1)
+            # m2_t = superior.get_torque(2)
+            
+            m1_kp = superior.get_kp(1)
+            m2_kp = superior.get_kp(2)
+            
+            m1_kd = superior.get_kd(1)
+            m2_kd = superior.get_kd(2)
             if verbose:
-                print(f"빠른 걷기: right: {right_mc.position:.2f}({right_mc.deg_position:.2f}°), left: {left_mc.position:.2f}({left_mc.deg_position:.2f}°)")
-                print(f"속도: {right_mc.velocity:.2f}, {left_mc.deg_velocity:.2f}")
-            
-            
-            time.sleep(0.01)  # CPU 부하 방지
+                # print one-line
+                status_line = f"빠른 걷기: R: {right_mc.position:5.2f}({right_mc.deg_position:5.2f}°), L: {left_mc.position:5.2f}({left_mc.deg_position:5.2f}°) | 속도: R: {right_mc.velocity:5.2f}, L: {left_mc.deg_velocity:5.2f}"
+                # f"| 토크: M1: {m1_t:5.2f}, M2: {m2_t:5.2f} | kp: M1: {m1_kp:5.2f}, M2: {m2_kp:5.2f} | kd: M1: {m1_kd:5.2f}, M2: {m2_kd:5.2f}"
+                print(status_line, end="\r")
+            # time.sleep(0.01)  # CPU 부하 방지
             
     except Exception as e:
         print(f"빠른 걷기 오류: {e}")
@@ -392,13 +400,30 @@ def left_leg_injury(superior: RobstrideMotorsSupervisor, period: float = 2.0, am
     
     return last_right_pos, last_left_pos
 
+
+def sefe_stop_v2(superior: RobstrideMotorsSupervisor, 
+              current_right: float = 0, 
+              current_left: float = 0) -> None:
+    """안전하게 원점으로 복귀 후 정지"""
+    print("안전하게 모터 정지...")
+    
+    # 현재 위치에서 원점으로 부드럽게 전환
+    from step_senario_param import transition_positions
+    
+    # 현재 위치에서 원점으로 부드럽게 전환
+    transition_positions(superior, current_right, current_left, 0, 0, 1.0)
+    
+    # 모터 정지
+    superior.add_motor_to_zero(1)
+    superior.add_motor_to_zero(2)
+    print("모터 정지 완료")
 def safe_stop(superior: RobstrideMotorsSupervisor, 
               current_right: float = 0, current_left: float = 0) -> None:
     """안전하게 원점으로 복귀 후 정지"""
     print("안전하게 모터 정지...")
     
     # 현재 위치에서 원점으로 부드럽게 전환
-    calib_positions(superior, current_right, current_left, 0, 0, 1.0)
+    # calib_positions(superior, current_right, current_left, 0, 0, 1.0)
     
     # 모터 정지
     superior.add_motor_to_zero(1)
@@ -449,15 +474,17 @@ def main(args) -> None:
         # 각 시나리오를 순차적으로 실행하고 자연스럽게 전환
         for cycle in range(args.cycles):
             print(f"\n===== 사이클 {cycle+1}/{args.cycles} 시작 =====\n")
-            right_mc.period /=2
-            left_mc.period /=2
+
             # 빠른 걷기 시작 (처음 시작이므로 시작 위치 지정 없음)
-            walk(superior= superior, 
+            right_mc, left_mc = walk(superior= superior, 
                     right_mc= right_mc, 
                     left_mc= left_mc,
-                    duration=args.duration)
-            time.sleep(0.5)
+                    duration=args.duration,
+                    verbose=args.verbose)
+            # time.sleep(0.5)
             # 느린 걷기로 전환 (이전 마지막 위치에서 시작)
+            # right_mc.period /=2
+            # left_mc.period /=2
             # walk(superior= superior, 
             #                     right_mc= right_mc, 
             #                     left_mc= left_mc,
@@ -494,7 +521,7 @@ def main(args) -> None:
             print(f"\n===== 사이클 {cycle+1}/{args.cycles} 완료 =====\n")
         
         # 안전하게 정지
-        safe_stop(superior, right_pos, left_pos)
+        sefe_stop_v2(superior, right_mc.position, left_mc.position)
             
     except KeyboardInterrupt:
         print("사용자에 의해 중단됨")
@@ -527,16 +554,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="모터 제어 시나리오 테스트")
     parser.add_argument("-v", "--verbose", action="store_true", help="상세 출력 활성화")
     parser.add_argument("--port", type=str, default="/dev/ttyUSB0", help="시리얼 포트 이름")
-    parser.add_argument("--period", type=float, default=2.0, help="주기 (초)")
-    parser.add_argument("--amplitude", type=float, default=1.0, help="진폭 (기본값: 1.0 라디안)")
+    parser.add_argument("--period", type=float, default=6.0, help="주기 (초)")
+    parser.add_argument("--amplitude", type=float, default=1.2, help="진폭 (기본값: 1.0 라디안)")
     parser.add_argument("--kp", type=float, default=10.0, help="kp (기본값: 10.0)")
-    parser.add_argument("--kd", type=float, default=1.0, help="kd (기본값: 1.0)")
+    parser.add_argument("--kd", type=float, default=2.0, help="kd (기본값: 1.0)")
     parser.add_argument("--motor-id", type=int, default=1, help="모터 ID (기본값: 1)")
     parser.add_argument("--motor-type", type=str, default="01", help="모터 타입 (기본값: 01)")
     parser.add_argument("--second-motor-id", type=int, default=2, help="모터 ID (기본값: 2)")
     parser.add_argument("--second-motor-type", type=str, default="01", help="모터 타입 (기본값: 01)")
-    parser.add_argument("--duration", type=float, default=10.0, help="각 모드의 실행 시간 (초)")
-    parser.add_argument("--cycles", type=int, default=10, help="전체 사이클 반복 횟수")
+    parser.add_argument("--duration", type=float, default=3600.0, help="각 모드의 실행 시간 (초)")
+    parser.add_argument("--cycles", type=int, default=1, help="전체 사이클 반복 횟수")
     
     # 부상 시뮬레이션을 위한 스케일 옵션
     parser.add_argument("--scale", type=float, default=0.25, help="다리 부상 시 스케일 (기본값: 0.25)")

@@ -343,7 +343,7 @@ class RobstrideMotorsSupervisor:
         except ValueError as e:
             raise RuntimeError(str(e))
     
-    def set_kd(self, motor_id: int, kd: float) -> float:
+    def set_kd(self, motor_id: int, kd: float) -> None:
         """
         Set the derivative gain for a motor.
         
@@ -362,7 +362,7 @@ class RobstrideMotorsSupervisor:
             
             # Clamp kd within limits
             clamped_kd = max(kd_min, min(kd_max, kd))
-            return self.inner.set_kd(motor_id, clamped_kd)
+            self.inner.set_kd(motor_id, clamped_kd)
         except ValueError as e:
             raise RuntimeError(str(e))
     
@@ -381,7 +381,7 @@ class RobstrideMotorsSupervisor:
         except ValueError as e:
             raise RuntimeError(str(e))
     
-    def set_torque(self, motor_id: int, torque: float) -> float:
+    def set_torque(self, motor_id: int, torque: float) -> None:
         """
         Set the target torque for a motor.
         
@@ -398,8 +398,8 @@ class RobstrideMotorsSupervisor:
             t_max = motor_config.t_max
             
             # Clamp torque within limits
-            clamped_torque = max(t_min, min(t_max, torque)) 
-            return self.inner.set_torque(motor_id, clamped_torque)
+            torque = max(t_min, min(t_max, torque))
+            self.inner.set_torque(motor_id, torque)
         except ValueError as e:
             raise RuntimeError(str(e))
     

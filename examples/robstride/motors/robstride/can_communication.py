@@ -372,7 +372,7 @@ def unpack_raw_feedback(pack: CanPack) -> MotorFeedbackRaw:
     pos_int = (pack.data[0] << 8) | pack.data[1]
     vel_int = (pack.data[2] << 8) | pack.data[3]
     torque_int = (pack.data[4] << 8) | pack.data[5]
-
+    temp = ((pack.data[6] << 8) | pack.data[7])*0.1
     return MotorFeedbackRaw(
         can_id=can_id,
         pos_int=pos_int,
@@ -934,6 +934,7 @@ class MotorsSupervisor:
         with self.target_params_lock:
             if motor_id not in self.target_params:
                 raise ValueError(f"Motor ID {motor_id} not found")
+            
             params = self.target_params[motor_id]
             params.velocity = velocity
             return params.velocity
@@ -944,13 +945,12 @@ class MotorsSupervisor:
                 raise ValueError(f"Motor ID {motor_id} not found")
             return self.target_params[motor_id].velocity
 
-    def set_kp(self, motor_id: int, kp: float) -> float:
+    def set_kp(self, motor_id: int, kp: float) -> None:
         with self.target_params_lock:
             if motor_id not in self.target_params:
                 raise ValueError(f"Motor ID {motor_id} not found")
-            params = self.target_params[motor_id]
-            params.kp = max(0.0, kp)  # Clamp to non-negative
-            return params.kp
+            self.target_params[motor_id].kp = max(self.motors.motor_configs[motor_id].kd_min, kp)  # Clamp to non-negative
+            
 
     def get_kp(self, motor_id: int) -> float:
         with self.target_params_lock:
@@ -958,13 +958,12 @@ class MotorsSupervisor:
                 raise ValueError(f"Motor ID {motor_id} not found")
             return self.target_params[motor_id].kp
 
-    def set_kd(self, motor_id: int, kd: float) -> float:
+    def set_kd(self, motor_id: int, kd: float) -> None:
         with self.target_params_lock:
             if motor_id not in self.target_params:
                 raise ValueError(f"Motor ID {motor_id} not found")
-            params = self.target_params[motor_id]
-            params.kd = max(0.0, kd)  # Clamp to non-negative
-            return params.kd
+            self.target_params[motor_id].kd = max(self.motors.motor_configs[motor_id].kd_min, kd)  # Clamp to non-negative
+            
 
     def get_kd(self, motor_id: int) -> float:
         with self.target_params_lock:
@@ -972,13 +971,13 @@ class MotorsSupervisor:
                 raise ValueError(f"Motor ID {motor_id} not found")
             return self.target_params[motor_id].kd
 
-    def set_torque(self, motor_id: int, torque: float) -> float:
+    def set_torque(self, motor_id: int, torque: float)->None:
         with self.target_params_lock:
             if motor_id not in self.target_params:
                 raise ValueError(f"Motor ID {motor_id} not found")
-            params = self.target_params[motor_id]
-            params.torque = torque
-            return params.torque
+            self.target_params[motor_id].torque = torque
+            #max(self.motors.motor_configs[motor_id].t_min, torque)  # Clamp to non-negative
+            
 
     def get_torque(self, motor_id: int) -> float:
         with self.target_params_lock:

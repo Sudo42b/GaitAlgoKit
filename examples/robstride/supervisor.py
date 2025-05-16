@@ -15,7 +15,7 @@ def main() -> None:
     parser.add_argument("--motor-type", type=str, default="01")
     parser.add_argument("--sleep", type=float, default=0.00)
     parser.add_argument("--period", type=float, default=2.5)
-    parser.add_argument("--amplitude", type=float, default=0.65)
+    parser.add_argument("--amplitude", type=float, default=1)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 

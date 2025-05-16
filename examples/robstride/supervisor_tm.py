@@ -17,7 +17,7 @@ def main() -> None:
     parser.add_argument("--second-motor-type", type=str, default="01")
     parser.add_argument("--sleep", type=float, default=0.00)
     
-    parser.add_argument("--period", type=float, default=2.5)
+    parser.add_argument("--period", type=float, default=7.5)
     parser.add_argument("--amplitude", type=float, default=1.0)
     parser.add_argument("--target-angle", type=float, default=30.0)  # 목표 각도 (도 단위)
     parser.add_argument("--verbose", action="store_true")
