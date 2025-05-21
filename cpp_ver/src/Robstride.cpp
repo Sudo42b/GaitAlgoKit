@@ -1,6 +1,10 @@
 #include "../include/Robstrite.h"
 #include "../include/MotorTypes.h"
-#include <windows.h>
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+#endif
 #include <iostream>
 
 // CAN to USB 어댑터 핸들
