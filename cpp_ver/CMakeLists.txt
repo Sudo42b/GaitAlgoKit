@@ -9,17 +9,19 @@ include_directories(include)
 
 # 소스 파일 목록 설정
 set(SOURCE_FILES
+    # src/main.cpp
     src/supervisor.cpp
-    src/MotorController.cpp  # 이 파일이 추가되어 있는지 확인
-    src/SerialPort.cpp       # 이 파일이 추가되어 있는지 확인
-    # 필요한 추가 소스 파일
+    src/MotorController.cpp
+    src/SerialPort.cpp
+    src/Robstride.cpp
+    src/device_handle.cpp
 )
 
 # 실행 파일 생성
-add_executable(supervisor ${SOURCE_FILES})
+add_executable(gait_algokit ${SOURCE_FILES})
 
 # 필요한 경우 스레드 라이브러리 링크
 find_package(Threads REQUIRED)
-target_link_libraries(supervisor Threads::Threads)
+target_link_libraries(gait_algokit Threads::Threads)
 
 # 기타 필요한 라이브러리 링크

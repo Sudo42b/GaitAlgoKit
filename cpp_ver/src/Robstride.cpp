@@ -1,14 +1,14 @@
-#include "../include/Robstrite.h"
-#include "../include/MotorTypes.h"
+#include "Robstride.h"
+#include "MotorTypes.h"
 #ifdef _WIN32
     #include <windows.h>
+    extern HANDLE hDevice;
 #else
     #include <unistd.h>
+    typedef int HANDLE;
+    extern HANDLE hDevice;
 #endif
 #include <iostream>
-
-// CAN to USB 어댑터 핸들
-extern HANDLE hDevice;
 
 // data_read_write 생성자 구현
 data_read_write::data_read_write(const uint16_t *index_list) {
@@ -50,6 +50,7 @@ RobStrite_Motor::RobStrite_Motor(float (*Offset_MotoFunc)(float Motor_Tar), uint
 
 // CAN 메시지 전송 함수
 bool SendCANMessage(uint8_t* data, uint8_t length) {
+#ifdef _WIN32
     if (hDevice == INVALID_HANDLE_VALUE) {
         std::cout << "CAN 장치가 연결되지 않았습니다." << std::endl;
         return false;
@@ -61,6 +62,15 @@ bool SendCANMessage(uint8_t* data, uint8_t length) {
         return false;
     }
     return true;
+#else
+    // Linux 환경에서는 write() 함수 사용
+    ssize_t bytesWritten = write(hDevice, data, length);
+    if (bytesWritten < 0) {
+        std::cout << "CAN 메시지 전송 실패" << std::endl;
+        return false;
+    }
+    return true;
+#endif
 }
 
 // CAN ID 가져오기

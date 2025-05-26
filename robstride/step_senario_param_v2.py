@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple
 import threading
 from motors.robstride.bindings import RobstrideMotorsSupervisor
 
-
 class Motor_Controller:
     def __init__(self, 
                  amplitude:float=1.0, 

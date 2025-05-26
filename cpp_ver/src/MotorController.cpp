@@ -1,5 +1,6 @@
 #include "../include/MotorController.h"
 #include "../include/SerialPort.h"
+#include "../include/device_handle.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -81,13 +82,16 @@ MotorController::MotorController(
     can_timeout_(can_timeout),
     current_mode_(RunMode::UnsetMode)
 {
-    // 시리얼 포트 초기화
-    try {
-        port_ = std::make_unique<SerialPort>(port_name, 921600);
-        port_->open();
-    } catch (const std::exception& e) {
-        throw std::runtime_error("시리얼 포트 초기화 실패: " + std::string(e.what()));
+    // 시리얼 포트는 이미 device_handle.cpp에서 초기화되었으므로
+    // 여기서는 포인터만 설정
+    port_ = std::make_unique<SerialPort>(port_name, 921600);
+    
+    // hDevice가 유효한지 확인
+    if (hDevice < 0) {
+        throw std::runtime_error("시리얼 포트가 초기화되지 않았습니다.");
     }
+    
+    port_->setHandle(hDevice);  // 이미 열린 핸들 사용
 
     // 모터 설정 초기화
     for (const auto& [id, type] : motor_mapping_) {
@@ -483,99 +487,104 @@ MotorFeedback MotorController::unpackFeedback(const CanPack& pack) {
     throw std::runtime_error("모터 ID를 찾을 수 없습니다: " + std::to_string(pack.ex_id.id));
 }
 
-void MotorController::txPacks(const std::vector<CanPack>& packs, bool verbose) {
-    if (packs.empty()) {
+void MotorController::txPacks(const std::vector<CanPack>& serialData, bool verbose) {
+    if (serialData.empty()) {
         return;
     }
+    std::vector<uint8_t> result;
     
-    std::vector<uint8_t> buffer;
-    for (const auto& pack : packs) {
-        buffer.push_back('A');
-        buffer.push_back('T');
+    if (serialData.size() >= 6) {
+        // 첫 4바이트 처리
+        result.push_back(serialData[0]);
+        result.push_back(serialData[1]);
+        result.push_back(serialData[2]);
+        result.push_back(serialData[3]);
         
-        auto ex_id_bytes = packExId(pack.ex_id);
-        buffer.insert(buffer.end(), ex_id_bytes.begin(), ex_id_bytes.end());
+        // 5번째 바이트 처리
+        result.push_back(serialData[4]);
         
-        buffer.push_back(pack.len);
-        buffer.insert(buffer.end(), pack.data.begin(), pack.data.begin() + pack.len);
-        
-        buffer.push_back('\r');
-        buffer.push_back('\n');
+        // 나머지 바이트 처리
+        for (size_t i = 5; i < serialData.size(); ++i) {
+            result.push_back(serialData[i]);
+        }
     }
     
     if (verbose) {
         std::cout << "TX: ";
-        for (uint8_t b : buffer) {
+        for (uint8_t b : result) {
             std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
         }
         std::cout << std::dec << std::endl;
     }
     
-    port_->write(buffer.data(), buffer.size());
+    try {
+        port_->write(result.data(), result.size());
+        // port_->flush();
+    } catch (const std::exception& e) {
+        throw std::runtime_error("CAN 메시지 전송 실패: " + std::string(e.what()));
+    }
 }
 
 std::vector<CanPack> MotorController::rxUnpack(size_t len, bool verbose) {
     std::vector<CanPack> packs;
-    std::vector<uint8_t> buffer(17);
+    size_t max_attempts = len * 2;
+    size_t attempt = 0;
     
-    while (packs.size() < len) {
-        size_t bytes_read = port_->read(buffer.data(), buffer.size());
-        if (bytes_read == 0) {
-            break;
+    while (packs.size() < len && attempt < max_attempts) {
+        attempt++;
+        
+        // AT 헤더 읽기
+        std::vector<uint8_t> header(2);
+        if (port_->read(header.data(), 2) != 2 || header[0] != 'A' || header[1] != 'T') {
+            continue;
         }
+        
+        // ex_id 읽기
+        std::vector<uint8_t> ex_id_bytes(4);
+        if (port_->read(ex_id_bytes.data(), 4) != 4) {
+            continue;
+        }
+        
+        // 길이 읽기
+        uint8_t len_byte;
+        if (port_->read(&len_byte, 1) != 1) {
+            continue;
+        }
+        
+        // 데이터 읽기
+        std::vector<uint8_t> data(len_byte);
+        if (port_->read(data.data(), len_byte) != len_byte) {
+            continue;
+        }
+        
+        // 종료 문자 읽기
+        std::vector<uint8_t> ending(2);
+        if (port_->read(ending.data(), 2) != 2 || ending[0] != '\r' || ending[1] != '\n') {
+            continue;
+        }
+        
+        // 패킷 생성
+        CanPack pack;
+        std::array<uint8_t, 4> ex_id_array;
+        std::copy(ex_id_bytes.begin(), ex_id_bytes.begin() + 4, ex_id_array.begin());
+        pack.ex_id = unpackExId(ex_id_array);
+        pack.len = len_byte;
+        pack.data = data;
+        packs.push_back(pack);
         
         if (verbose) {
+            // 디버그 출력
             std::cout << "RX: ";
-            for (size_t i = 0; i < bytes_read; i++) {
-                std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(buffer[i]) << " ";
-            }
+            for (uint8_t b : header) std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
+            for (uint8_t b : ex_id_bytes) std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
+            std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(len_byte) << " ";
+            for (uint8_t b : data) std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
+            for (uint8_t b : ending) std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b) << " ";
             std::cout << std::dec << std::endl;
-        }
-        
-        if (bytes_read == 17 && buffer[0] == 'A' && buffer[1] == 'T') {
-            std::array<uint8_t, 4> ex_id_bytes;
-            std::copy(buffer.begin() + 2, buffer.begin() + 6, ex_id_bytes.begin());
-            
-            CanPack pack;
-            pack.ex_id = unpackExId(ex_id_bytes);
-            pack.len = buffer[6];
-            pack.data = std::vector<uint8_t>(buffer.begin() + 7, buffer.begin() + 7 + pack.len);
-            packs.push_back(pack);
         }
     }
     
     return packs;
-}
-
-std::array<uint8_t, 4> MotorController::packExId(const ExId& ex_id) {
-    uint32_t addr = (static_cast<uint32_t>(ex_id.id) << 24) |
-                   (static_cast<uint32_t>(ex_id.data) << 8) |
-                   (static_cast<uint32_t>(ex_id.mode) << 3) |
-                   (static_cast<uint32_t>(ex_id.res) << 0) |
-                   0x00000004;
-    
-    std::array<uint8_t, 4> result;
-    result[0] = (addr >> 24) & 0xFF;
-    result[1] = (addr >> 16) & 0xFF;
-    result[2] = (addr >> 8) & 0xFF;
-    result[3] = addr & 0xFF;
-    return result;
-}
-
-ExId MotorController::unpackExId(const std::array<uint8_t, 4>& addr) {
-    uint32_t value = (static_cast<uint32_t>(addr[0]) << 24) |
-                    (static_cast<uint32_t>(addr[1]) << 16) |
-                    (static_cast<uint32_t>(addr[2]) << 8) |
-                    static_cast<uint32_t>(addr[3]);
-    
-    value >>= 3;
-    
-    return ExId{
-        static_cast<uint8_t>((value >> 24) & 0xFF),
-        static_cast<uint16_t>((value >> 8) & 0xFFFF),
-        static_cast<CanComMode>((value >> 3) & 0x1F),
-        static_cast<uint8_t>(value & 0x07)
-    };
 }
 
 void MotorController::setMotorMode(uint8_t motor_id, RunMode mode) {
@@ -787,3 +796,51 @@ void MotorController::updateMotorState(uint8_t motor_id, const MotorControlParam
 bool MotorController::validateMotorId(uint8_t motor_id) const {
     return motor_mapping_.find(motor_id) != motor_mapping_.end();
 } 
+
+std::array<uint8_t, 4> MotorController::packExId(const ExId& ex_id) {
+    // Python의 pack_bits 함수와 동일한 로직 구현
+    uint32_t addr = 0;
+    
+    // id (8비트)
+    addr |= (ex_id.id & 0xFF);
+    
+    // data (16비트)
+    addr |= (ex_id.data & 0xFFFF) << 8;
+    
+    // mode (5비트)
+    addr |= (static_cast<uint32_t>(ex_id.mode) & 0x1F) << 24;
+    
+    // res (3비트)
+    addr |= (ex_id.res & 0x07) << 29;
+    
+    // 최종 주소 계산 (Python 코드의 << 3 | 0x00000004와 동일)
+    addr = (addr << 3) | 0x00000004;
+    
+    // big-endian으로 변환
+    std::array<uint8_t, 4> result;
+    result[0] = (addr >> 24) & 0xFF;
+    result[1] = (addr >> 16) & 0xFF;
+    result[2] = (addr >> 8) & 0xFF;
+    result[3] = addr & 0xFF;
+    
+    return result;
+}
+
+ExId MotorController::unpackExId(const std::array<uint8_t, 4>& bytes) {
+    // big-endian에서 uint32_t로 변환
+    uint32_t addr = (static_cast<uint32_t>(bytes[0]) << 24) |
+                   (static_cast<uint32_t>(bytes[1]) << 16) |
+                   (static_cast<uint32_t>(bytes[2]) << 8) |
+                   static_cast<uint32_t>(bytes[3]);
+    
+    // Python의 unpack_bits 함수와 동일한 로직 구현
+    addr >>= 3;  // Python 코드의 >> 3과 동일
+    
+    ExId result;
+    result.id = addr & 0xFF;                    // 8비트
+    result.data = (addr >> 8) & 0xFFFF;         // 16비트
+    result.mode = static_cast<CanComMode>((addr >> 24) & 0x1F);  // 5비트
+    result.res = (addr >> 29) & 0x07;           // 3비트
+    
+    return result;
+}

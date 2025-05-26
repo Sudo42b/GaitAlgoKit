@@ -61,6 +61,8 @@
         "streambuf": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "cstring": "cpp"
-    }
+        "cstring": "cpp",
+        "*.tcc": "cpp"
+    },
+    "python.pythonPath": ".venv/bin/python3.11"
 }

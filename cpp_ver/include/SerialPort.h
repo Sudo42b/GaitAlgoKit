@@ -10,7 +10,8 @@
     #include <termios.h>
     #include <unistd.h>
     #include <sys/ioctl.h>
-    typedef unsigned int DWORD;
+    typedef int HANDLE;  // Linux에서는 int를 HANDLE로 사용
+    typedef unsigned int DWORD;  // Linux에서 DWORD 정의
 #endif
 
 class SerialPort {
@@ -29,15 +30,12 @@ public:
     size_t read(uint8_t* buffer, size_t length);
     // 포트가 열려있는지 확인
     bool isOpen() const;
+    void setHandle(HANDLE handle) { hSerial = handle; }
 
 private:
     std::string portName;
     DWORD baudRate;
-    #ifdef _WIN32
-        HANDLE hSerial;
-    #else
-        int hSerial;
-    #endif
+    HANDLE hSerial;
     bool opened;
 
     // 시리얼 포트 설정

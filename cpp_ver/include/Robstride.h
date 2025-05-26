@@ -1,10 +1,11 @@
-#pragma once
+#ifndef ROBSTRIDE_H
+#define ROBSTRIDE_H
 
 #include <stdint.h>
 #include <string>
 #include <functional>
-#include "main.h"
-#include "can.h"
+// #include "main.h"
+// #include "can.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -131,4 +132,4 @@ public:
 }
 #endif
 
-#endif 
+#endif // ROBSTRIDE_H 

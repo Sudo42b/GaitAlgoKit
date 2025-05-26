@@ -1,4 +1,4 @@
-#include "../include/Robstrite.h"
+#include "Robstrite.h"
 #include "SerialPort.h"
 #include <iostream>
 #include <string>
@@ -41,7 +41,7 @@ bool ReceiveCANMessage(uint8_t* data, uint8_t* length) {
 int main() {
     try {
         // 시리얼 포트 열기
-        serialPort = new SerialPort("COM3");  // 포트 이름은 실제 사용하는 포트로 변경
+        serialPort = new SerialPort("/dev/ttyUSB0");  // 포트 이름은 실제 사용하는 포트로 변경
         serialPort->open();
         std::cout << "시리얼 포트 연결 성공" << std::endl;
 

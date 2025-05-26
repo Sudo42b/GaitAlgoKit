@@ -1,4 +1,5 @@
-#include "../include/MotorController.h"
+#include "MotorController.h"
+#include "device_handle.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -6,6 +7,7 @@
 #include <csignal>
 #include <map>
 #include <string>
+#include <unistd.h>
 
 // M_PI가 정의되어 있지 않은 경우를 위한 정의
 #ifndef M_PI
@@ -30,6 +32,26 @@ void signalHandler(int signum) {
 int main(int argc, char* argv[]) {
     // 기본 인자값 설정
     std::string port_name = "/dev/ttyUSB0";  // Windows의 경우 COM 포트 사용
+    
+    // 시리얼 포트 권한 확인
+    if (access(port_name.c_str(), R_OK | W_OK) != 0) {
+        std::cerr << "시리얼 포트 권한 오류: " << port_name << std::endl;
+        std::cerr << "다음 명령어를 실행해보세요: sudo chmod 666 " << port_name << std::endl;
+        return 1;
+    }
+    
+    // CAN 장치 초기화
+    std::cout << "CAN 장치 초기화 시도 중... (" << port_name << ")" << std::endl;
+    if (!initCANDevice(port_name.c_str())) {
+        std::cerr << "CAN 장치 초기화 실패: " << port_name << std::endl;
+        std::cerr << "다음 사항을 확인해주세요:" << std::endl;
+        std::cerr << "1. 시리얼 포트가 올바르게 연결되어 있는지" << std::endl;
+        std::cerr << "2. baud rate가 올바른지 (현재: 921600)" << std::endl;
+        std::cerr << "3. 다른 USB 포트를 시도해보세요" << std::endl;
+        return 1;
+    }
+    std::cout << "CAN 장치 초기화 성공!" << std::endl;
+    
     uint8_t motor_id = 1;
     std::string motor_type = "01";
     uint8_t second_motor_id = 2;
@@ -83,6 +105,13 @@ int main(int argc, char* argv[]) {
         supervisor->setKp(second_motor_id, 10.0f);
         supervisor->setKd(second_motor_id, 2.0f);
 
+        // 모터 초기화 및 활성화
+        std::cout << "모터 초기화 중..." << std::endl;
+        supervisor->sendResets();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        supervisor->sendStarts();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
         // 시작 시간 기록
         auto start_time = std::chrono::steady_clock::now();
 
@@ -91,38 +120,40 @@ int main(int argc, char* argv[]) {
             auto current_time = std::chrono::steady_clock::now();
             float elapsed_time = std::chrono::duration<float>(current_time - start_time).count();
 
-            // 비대칭 진동 계산
-            float center = 0.5f;  // 중심점
-            float amp = 1.0f;     // 진폭
+            try {
+                // 첫 번째 모터
+                float angle1 = amplitude * std::sin(elapsed_time * 2 * M_PI / period);
+                float velocity1 = amplitude * 2 * M_PI / period * std::cos(elapsed_time * 2 * M_PI / period);
 
-            // 첫 번째 모터
-            float angle1 = center + amp * std::sin(elapsed_time * 2 * M_PI / period);
-            float velocity1 = amp * 2 * M_PI / period * std::cos(elapsed_time * 2 * M_PI / period);
+                // 두 번째 모터 (반대 위상)
+                float angle2 = amplitude * std::sin(elapsed_time * 2 * M_PI / period + M_PI);
+                float velocity2 = amplitude * 2 * M_PI / period * std::cos(elapsed_time * 2 * M_PI / period + M_PI);
 
-            // 두 번째 모터 (반대 위상)
-            float angle2 = center + amp * std::sin(elapsed_time * 2 * M_PI / period + M_PI);
-            float velocity2 = amp * 2 * M_PI / period * std::cos(elapsed_time * 2 * M_PI / period + M_PI);
+                // 위치와 속도 설정
+                supervisor->setPosition(motor_id, angle1);
+                supervisor->setVelocity(motor_id, velocity1);
+                supervisor->setPosition(second_motor_id, angle2);
+                supervisor->setVelocity(second_motor_id, velocity2);
 
-            // 위치와 속도 설정
-            supervisor->setPosition(motor_id, angle1);
-            supervisor->setVelocity(motor_id, velocity1);
-            supervisor->setPosition(second_motor_id, angle2);
-            supervisor->setVelocity(second_motor_id, velocity2);
-
-            // 피드백 출력
-            if (verbose) {
-                auto feedbacks = supervisor->getLatestFeedback();
-                for (const auto& [id, feedback] : feedbacks) {
-                    std::cout << "모터 " << static_cast<int>(id) << ":" << std::endl;
-                    std::cout << "  현재 각도: " << (feedback.position * 180 / M_PI) << "도" << std::endl;
-                    std::cout << "  현재 속도: " << feedback.velocity << " rad/s" << std::endl;
-                    std::cout << "  현재 토크: " << feedback.torque << std::endl;
+                // 피드백 출력
+                if (verbose) {
+                    auto feedbacks = supervisor->getLatestFeedback();
+                    for (const auto& [id, feedback] : feedbacks) {
+                        std::cout << "모터 " << static_cast<int>(id) << ":" << std::endl;
+                        std::cout << "  현재 각도: " << (feedback.position * 180 / M_PI) << "도" << std::endl;
+                        std::cout << "  현재 속도: " << feedback.velocity << " rad/s" << std::endl;
+                        std::cout << "  현재 토크: " << feedback.torque << std::endl;
+                    }
                 }
-            }
 
-            // 대기
-            if (sleep_time > 0) {
-                std::this_thread::sleep_for(std::chrono::duration<float>(sleep_time));
+                // 대기
+                if (sleep_time > 0) {
+                    std::this_thread::sleep_for(std::chrono::duration<float>(sleep_time));
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "제어 루프 오류: " << e.what() << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
             }
         }
     }
